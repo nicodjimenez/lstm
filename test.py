@@ -1,93 +1,44 @@
-from lstm import *
+import numpy as np
 
-def check_gradients():
-    lstm_param = LstmParam() 
-    lstm = LSTM(lstm_param)
-    input_val = np.random.random(x_dim)
-    target_value = np.zeros(mem_cell_ct)
+from lstm import LstmParam, LstmNetwork
 
-    # init activations
-    lstm.forward(input_val)
-    loss_0 = EuclideanLoss.forward(lstm.state.h, target_value)
-    loss_diff = EuclideanLoss.backward(lstm.state.h, target_value)
-    lstm.backward(loss_diff)
-    bottom_diff = lstm.state.bottom_diff
+class ToyLossLayer:
+    """
+    Computes square loss with first element of hidden layer array.
+    """
+    @classmethod
+    def loss(self, pred, label):
+        return (pred[0] - label) ** 2
 
-    # modify input 
-    delta = 0.00001
-    input_val[0] += delta
+    @classmethod
+    def bottom_diff(self, pred, label):
+        diff = np.zeros_like(pred)
+        diff[0] = 2 * (pred[0] - label)
+        return diff
 
-    lstm.forward(input_val)
-    loss_1 = EuclideanLoss.forward(lstm.state.h, target_value)
-    loss_grad = (loss_1 - loss_0) / delta
+def example_0():
+    # learns to repeat simple sequence from random inputs
+    np.random.seed(0)
 
-    print "bottom diff:", bottom_diff[0]
-    print "loss grad:", loss_grad
-    print (loss_grad - bottom_diff[0]) / loss_grad
+    # parameters for input data dimension and lstm cell count 
+    mem_cell_ct = 100
+    x_dim = 50
+    concat_len = x_dim + mem_cell_ct
+    lstm_param = LstmParam(mem_cell_ct, x_dim) 
+    lstm_net = LstmNetwork(lstm_param)
+    y_list = [-0.5,0.2,0.1, -0.5]
+    input_val_arr = [np.random.random(x_dim) for _ in y_list]
 
-def test():
-    #target_value = np.zeros(mem_cell_ct)
-    target_value = np.random.random(mem_cell_ct)
-    #print EuclideanLoss.forward(target_value, target_value)
-    #print EuclideanLoss.backward(target_value, target_value)
+    for _ in range(100):
+        for ind in range(len(y_list)):
+            lstm_net.x_list_add(input_val_arr[ind])
+            print "y_pred[%d] : %f" % (ind, lstm_net.lstm_node_list[ind].state.h[0])
 
-    lstm_param = LstmParam() 
-    lstm = LSTM(lstm_param)
-    input_val = np.random.random(x_dim)
-    #input_val = np.ones(x_dim)
+        loss = lstm_net.y_list_is(y_list, ToyLossLayer)
+        print "loss: ", loss
+        lstm_param.apply_diff(lr=0.1)
+        lstm_net.x_list_clear()
 
-    for _ in range(10):
-        lstm.forward(input_val)
-        loss = EuclideanLoss.forward(lstm.state.h, target_value)
-        print "Loss: ", loss
-        loss_diff = EuclideanLoss.backward(lstm.state.h, target_value)
-        lstm.backward(loss_diff)
-        lstm.param.apply_diff(1)
-
-def learn_sequence():
-    target_value = np.random.random(mem_cell_ct)
-    #print EuclideanLoss.forward(target_value, target_value)
-    #print EuclideanLoss.backward(target_value, target_value)
-    lstm_param = LstmParam() 
-    lstm = LSTM(lstm_param)
-    input_val = np.random.random(x_dim)
-    #input_val = np.ones(x_dim)
-
-    for _ in range(10):
-        lstm.forward(input_val)
-        loss = EuclideanLoss.forward(lstm.state.h, target_value)
-        print "Loss: ", loss
-        loss_diff = EuclideanLoss.backward(lstm.state.h, target_value)
-        lstm.backward(loss_diff)
-        lstm.param.apply_diff(1)
-
-#test()
-#check_gradients()
-#EuclideanLoss.check_gradients()
-"""
-TODO: make network learn sequence
-TODO: try to train on sequence data
-"""
-
-lstm_param = LstmParam() 
-lstm_net = LstmNetwork(lstm_param)
-
-#y_list = range(4)
-y_list = [1]
-input_val = np.random.random(x_dim)
-
-for _ in range(500):
-    print "new iteration"
-    for _ in range(len(y_list)):
-        lstm_net.x_list_add(input_val)
-
-    loss = lstm_net.y_list_is(y_list, ToyLossLayer)
-    print "loss: ", loss
-    lstm_param.apply_diff(1)
-    lstm_net.x_list_clear()
-#print "loss: ", loss
-
-
-
-
+if __name__ == "__main__":
+    example_0()
 

@@ -3,18 +3,14 @@ import random
 import numpy as np
 import math
 
-np.random.seed(0)
-
-# parameters for input data dimension and lstm cell count 
-mem_cell_ct = 20
-x_dim = 2
-concat_len = x_dim + mem_cell_ct
-
 def sigmoid(x):
     return 1. / (1 + np.exp(-x))
 
 class LstmParam:
-    def __init__(self):
+    def __init__(self, mem_cell_ct, x_dim):
+        self.mem_cell_ct = mem_cell_ct
+        self.x_dim = x_dim
+        concat_len = x_dim + mem_cell_ct
         # weight matrices
         self.wg =      (np.random.random((mem_cell_ct, concat_len)) - 0.5) * 0.1
         self.wi =      (np.random.random((mem_cell_ct, concat_len)) - 0.5) * 0.1
@@ -25,6 +21,7 @@ class LstmParam:
         self.bi =      (np.random.random(mem_cell_ct) - 0.5) * 0.1
         self.bf =      (np.random.random(mem_cell_ct) - 0.5) * 0.1
         self.bo =      (np.random.random(mem_cell_ct) - 0.5) * 0.1
+        # diffs (derivative of loss function w.r.t. all parameters)
         self.wg_diff = np.zeros((mem_cell_ct, concat_len)) 
         self.wi_diff = np.zeros((mem_cell_ct, concat_len)) 
         self.wf_diff = np.zeros((mem_cell_ct, concat_len)) 
@@ -44,43 +41,39 @@ class LstmParam:
         self.bf -= lr * self.bf_diff
         self.bo -= lr * self.bo_diff
         # reset diffs to zero
-        self.wg_diff = np.zeros((mem_cell_ct, concat_len)) 
-        self.wi_diff = np.zeros((mem_cell_ct, concat_len)) 
-        self.wf_diff = np.zeros((mem_cell_ct, concat_len)) 
-        self.wo_diff = np.zeros((mem_cell_ct, concat_len)) 
-        self.bg_diff = np.zeros(mem_cell_ct) 
-        self.bi_diff = np.zeros(mem_cell_ct) 
-        self.bf_diff = np.zeros(mem_cell_ct) 
-        self.bo_diff = np.zeros(mem_cell_ct) 
+        self.wg_diff = np.zeros_like(self.wg)
+        self.wi_diff = np.zeros_like(self.wi) 
+        self.wf_diff = np.zeros_like(self.wf) 
+        self.wo_diff = np.zeros_like(self.wo) 
+        self.bg_diff = np.zeros_like(self.bg)
+        self.bi_diff = np.zeros_like(self.bi) 
+        self.bf_diff = np.zeros_like(self.bf) 
+        self.bo_diff = np.zeros_like(self.bo) 
 
 class LstmState:
-    def __init__(self):
+    def __init__(self, mem_cell_ct, x_dim):
         self.g = np.zeros(mem_cell_ct)
         self.i = np.zeros(mem_cell_ct)
         self.f = np.zeros(mem_cell_ct)
         self.o = np.zeros(mem_cell_ct)
-        self.s  = np.zeros(mem_cell_ct)
+        self.s = np.zeros(mem_cell_ct)
         self.h = np.zeros(mem_cell_ct)
         self.bottom_diff_h = np.zeros_like(self.h)
         self.bottom_diff_s = np.zeros_like(self.s)
-        self.bottom_diff_x = np.zeros_like(x_dim)
+        self.bottom_diff_x = np.zeros(x_dim)
     
-class LSTM:
-    def __init__(self, lstm_param, lstm_state = None):
-        # initialize new activations
-        # note: one can make lstm_state share memory across layers
-        if lstm_state == None:
-            self.state = LstmState()
-        else:
-            lstm_state = lstm_state
-
-        # store reference to parameters
+class LstmNode:
+    def __init__(self, lstm_param, lstm_state):
+        # store reference to parameters and to activations
+        self.state = lstm_state
         self.param = lstm_param
+        # non-recurrent input to node
         self.x = None
+        # non-recurrent input concatenated with recurrent input
         self.xc = None
 
     def bottom_data_is(self, x, s_prev = None, h_prev = None):
-        # if this is the first lstm unit in the network
+        # if this is the first lstm node in the network
         if s_prev == None: s_prev = np.zeros_like(self.state.s)
         if h_prev == None: h_prev = np.zeros_like(self.state.h)
         # save data for use in backprop
@@ -89,7 +82,6 @@ class LSTM:
 
         # concatenate x(t) and h(t-1)
         xc = np.hstack((x,  h_prev))
-
         self.state.g = np.tanh(np.dot(self.param.wg, xc) + self.param.bg)
         self.state.i = sigmoid(np.dot(self.param.wi, xc) + self.param.bi)
         self.state.f = sigmoid(np.dot(self.param.wf, xc) + self.param.bf)
@@ -102,7 +94,6 @@ class LSTM:
     def top_diff_is(self, top_diff_h, top_diff_s):
         # notice that top_diff_s is carried along the constant error carousel
         ds = self.state.o * top_diff_h + top_diff_s
-        #ds = self.state.o * top_diff_h 
         do = self.state.s * top_diff_h
         di = self.state.g * ds
         dg = self.state.i * ds
@@ -132,17 +123,16 @@ class LSTM:
         dxc += np.dot(self.param.wg.T, dg_input)
 
         # save bottom diffs
-        self.state.bottom_diff_s = ds
-        self.state.bottom_diff_x = dxc[:x_dim]
-        self.state.bottom_diff_h = dxc[x_dim:]
+        self.state.bottom_diff_s = ds * self.state.f
+        self.state.bottom_diff_x = dxc[:self.param.x_dim]
+        self.state.bottom_diff_h = dxc[self.param.x_dim:]
 
 class LstmNetwork():
     def __init__(self, lstm_param):
         self.lstm_param = lstm_param
-        self.lstm_unit_list = []
+        self.lstm_node_list = []
         # input sequence
         self.x_list = []
-        self.y_list = []
 
     def y_list_is(self, y_list, loss_layer):
         """
@@ -154,26 +144,23 @@ class LstmNetwork():
         assert len(y_list) == len(self.x_list)
         idx = len(self.x_list) - 1
         # first node only gets diffs from label ...
-        loss = loss_layer.loss(self.lstm_unit_list[idx].state.h, y_list[idx])
-        #print "top loss: ", loss
-        diff_h = loss_layer.bottom_diff(self.lstm_unit_list[idx].state.h, y_list[idx])
+        loss = loss_layer.loss(self.lstm_node_list[idx].state.h, y_list[idx])
+        diff_h = loss_layer.bottom_diff(self.lstm_node_list[idx].state.h, y_list[idx])
         # here s is not affecting loss due to h(t+1), hence we set equal to zero
-        diff_s = np.zeros(mem_cell_ct)
-        self.lstm_unit_list[idx].top_diff_is(diff_h, diff_s)
+        diff_s = np.zeros(self.lstm_param.mem_cell_ct)
+        self.lstm_node_list[idx].top_diff_is(diff_h, diff_s)
         idx -= 1
 
-        ## ... following nodes also get diffs from next nodes, hence we add diffs to diff_h
-        ## we also propagate error along constant error carousel using diff_s
+        ### ... following nodes also get diffs from next nodes, hence we add diffs to diff_h
+        ### we also propagate error along constant error carousel using diff_s
         while idx >= 0:
-            loss += loss_layer.loss(self.lstm_unit_list[idx].state.h, y_list[idx])
-        #    #print "new loss: ", loss
-            diff_h = loss_layer.bottom_diff(self.lstm_unit_list[idx].state.h, y_list[idx])
-            diff_h += self.lstm_unit_list[idx + 1].state.bottom_diff_h
-            diff_s = self.lstm_unit_list[idx + 1].state.bottom_diff_s
-            self.lstm_unit_list[idx].top_diff_is(diff_h, diff_s)
+            loss += loss_layer.loss(self.lstm_node_list[idx].state.h, y_list[idx])
+            diff_h = loss_layer.bottom_diff(self.lstm_node_list[idx].state.h, y_list[idx])
+            diff_h += self.lstm_node_list[idx + 1].state.bottom_diff_h
+            diff_s = self.lstm_node_list[idx + 1].state.bottom_diff_s
+            self.lstm_node_list[idx].top_diff_is(diff_h, diff_s)
             idx -= 1 
 
-        #self.y_list = y_list
         return loss
 
     def x_list_clear(self):
@@ -181,64 +168,18 @@ class LstmNetwork():
 
     def x_list_add(self, x):
         self.x_list.append(x)
-        if len(self.x_list) > len(self.lstm_unit_list):
-            # need to add new lstm unit
-            self.lstm_unit_list.append(LSTM(self.lstm_param))
+        if len(self.x_list) > len(self.lstm_node_list):
+            # need to add new lstm node, create new state mem
+            lstm_state = LstmState(self.lstm_param.mem_cell_ct, self.lstm_param.x_dim)
+            self.lstm_node_list.append(LstmNode(self.lstm_param, lstm_state))
 
         # get index of most recent x input
         idx = len(self.x_list) - 1
         if idx == 0:
             # no recurrent inputs yet
-            self.lstm_unit_list[idx].bottom_data_is(x)
+            self.lstm_node_list[idx].bottom_data_is(x)
         else:
-            s_prev = self.lstm_unit_list[idx - 1].state.s
-            h_prev = self.lstm_unit_list[idx - 1].state.h
-            self.lstm_unit_list[idx].bottom_data_is(x, s_prev, h_prev)
-
-        print self.lstm_unit_list[idx].state.h[0]
-    #def 
-
-class ToyLossLayer:
-    """
-    Computes square loss with first element of hidden layer array.
-    """
-    @classmethod
-    def loss(self, pred, label):
-        return (pred[0] - label) ** 2
-
-    @classmethod
-    def bottom_diff(self, pred, label):
-        diff = np.zeros_like(pred)
-        diff[0] = 2 * (pred[0] - label)
-        return diff
-
-class EuclideanLoss:
-    def __init__(self):
-        pass
-
-    @classmethod
-    def forward(self, pred, label):
-        return (np.linalg.norm(pred - label) ** 2) / len(pred)
-
-    @classmethod
-    def backward(self, pred, label):
-        return 2. * (pred - label) / len(pred)
-
-    @classmethod
-    def check_gradients(self):
-        pred = np.random.random(5)
-        label = np.random.random(5)
-        loss_0 = self.forward(pred, label)
-        diff = self.backward(pred, label)
-        #rand_noise = np.random.random(5) * 0.0001
-        delta = 0.0000001
-        pred[0] += delta
-        #pred += rand_noise
-        loss_1 = self.forward(pred, label)
-        loss_deriv = (loss_1 - loss_0) / delta
-        #pred_deriv = delta * diff[0]
-        print "loss deriv:" , loss_deriv
-        print "diff[0]", diff[0]
-        print "per error: ", (loss_deriv - diff[0]) / loss_deriv
-
+            s_prev = self.lstm_node_list[idx - 1].state.s
+            h_prev = self.lstm_node_list[idx - 1].state.h
+            self.lstm_node_list[idx].bottom_data_is(x, s_prev, h_prev)
 
