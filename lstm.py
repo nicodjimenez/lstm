@@ -4,8 +4,10 @@ import numpy as np
 import math
 
 np.random.seed(0)
-mem_cell_ct = 100
-x_dim = 50
+mem_cell_ct = 10
+x_dim = 10
+#mem_cell_ct = 1
+#x_dim = 10
 concat_len = x_dim + mem_cell_ct
 
 def sigmoid(x):
@@ -13,20 +15,20 @@ def sigmoid(x):
 
 class LstmParam:
     def __init__(self):
-        self.wg =      np.random.random((mem_cell_ct, concat_len)) - 0.5 
-        self.wi =      np.random.random((mem_cell_ct, concat_len)) - 0.5
-        self.wf =      np.random.random((mem_cell_ct, concat_len)) - 0.5
-        self.wo =      np.random.random((mem_cell_ct, concat_len)) - 0.5
+        self.wg =      (np.random.random((mem_cell_ct, concat_len)) - 0.5) * 0.1
+        self.wi =      (np.random.random((mem_cell_ct, concat_len)) - 0.5) * 0.1
+        self.wf =      (np.random.random((mem_cell_ct, concat_len)) - 0.5) * 0.1
+        self.wo =      (np.random.random((mem_cell_ct, concat_len)) - 0.5) * 0.1
         self.wg_diff = np.zeros((mem_cell_ct, concat_len)) 
         self.wi_diff = np.zeros((mem_cell_ct, concat_len)) 
         self.wf_diff = np.zeros((mem_cell_ct, concat_len)) 
         self.wo_diff = np.zeros((mem_cell_ct, concat_len)) 
 
     def apply_diff(self, lr = 1):
-        self.wg += lr * self.wg_diff
-        self.wi += lr * self.wi_diff
-        self.wf += lr * self.wf_diff
-        self.wo += lr * self.wo_diff
+        self.wg -= lr * self.wg_diff
+        self.wi -= lr * self.wi_diff
+        self.wf -= lr * self.wf_diff
+        self.wo -= lr * self.wo_diff
         # reset diffs
         self.wg_diff = np.zeros((mem_cell_ct, concat_len)) 
         self.wi_diff = np.zeros((mem_cell_ct, concat_len)) 
@@ -56,11 +58,11 @@ class LSTM:
         self.next = None
         self.x = None
         self.xc = None
-        self.bottom_diff = None
+        #self.bottom_diff = None
 
     def forward(self, x):
         # add element to linked list
-        self.next = LSTM(lstm_param)
+        self.next = LSTM(self.param)
         self.next.prev = self
 
         # init code: set prev state to zero
@@ -72,6 +74,7 @@ class LSTM:
             prev_s = np.zeros_like(self.state.f)
 
         self.state.g = np.tanh(np.dot(self.param.wg, xc))
+        #self.state.g = sigmoid(np.dot(self.param.wg, xc))
         self.state.i = sigmoid(np.dot(self.param.wi, xc))
         self.state.f = sigmoid(np.dot(self.param.wf, xc))
         self.state.o = sigmoid(np.dot(self.param.wo, xc))
@@ -87,7 +90,8 @@ class LSTM:
         di = np.multiply(self.state.g, ds)
         dg = np.multiply(self.state.i, ds)
         if self.prev:
-            df = np.multiply(self.state.i, ds)
+            #df = np.multiply(self.state.i, ds)
+            df = self.state.i * ds
         else:
             df = np.zeros_like(self.state.f)
 
@@ -95,13 +99,13 @@ class LSTM:
         di_input = (1. - self.state.i) * self.state.i * di 
         df_input = (1. - self.state.f) * self.state.f * df 
         do_input = (1. - self.state.o) * self.state.o * do 
+        #dg_input = (1. - self.state.g) * self.state.g * dg 
         dg_input = (1. - self.state.g ** 2) * dg
 
-        # diffs w.r.t. params
-        self.param.wi_diff += np.outer(di_input, self.xc)
-        self.param.wf_diff += np.outer(df_input, self.xc)
-        self.param.wo_diff += np.outer(do_input, self.xc)
-        self.param.wg_diff += np.outer(dg_input, self.xc)
+        self.param.wi_diff = np.outer(di_input, self.xc)
+        self.param.wf_diff = np.outer(df_input, self.xc)
+        self.param.wo_diff = np.outer(do_input, self.xc)
+        self.param.wg_diff = np.outer(dg_input, self.xc)
 
         # diffs w.r.t. inputs
         dxc = np.zeros_like(self.xc)
@@ -109,7 +113,7 @@ class LSTM:
         dxc += np.dot(self.param.wf.T, df_input)
         dxc += np.dot(self.param.wo.T, do_input)
         dxc += np.dot(self.param.wg.T, dg_input)
-        self.bottom_diff = dxc
+        self.state.bottom_diff = dxc
 
 class EuclideanLoss:
     def __init__(self):
@@ -117,26 +121,78 @@ class EuclideanLoss:
 
     @classmethod
     def forward(self, pred, label):
-        return np.linalg.norm(pred - label)
+        return (np.linalg.norm(pred - label) ** 2) / len(pred)
 
     @classmethod
     def backward(self, pred, label):
-        return 2. * np.multiply((pred - label), pred)
-        
-random.seed(0)
-target_value = np.random.random(mem_cell_ct)
-#print EuclideanLoss.forward(target_value, target_value)
-#print EuclideanLoss.backward(target_value, target_value)
+        return 2. * (pred - label) / len(pred)
 
-lstm_param = LstmParam() 
-lstm = LSTM(lstm_param)
-input_val = np.random.random(x_dim)
+    @classmethod
+    def check_gradients(self):
+        pred = np.random.random(5)
+        label = np.random.random(5)
+        loss_0 = self.forward(pred, label)
+        diff = self.backward(pred, label)
+        #rand_noise = np.random.random(5) * 0.0001
+        delta = 0.0000001
+        pred[0] += delta
+        #pred += rand_noise
+        loss_1 = self.forward(pred, label)
+        loss_deriv = (loss_1 - loss_0) / delta
+        #pred_deriv = delta * diff[0]
+        print "loss deriv:" , loss_deriv
+        print "diff[0]", diff[0]
+        print "per error: ", (loss_deriv - diff[0]) / loss_deriv
 
-for _ in range(10):
+
+def check_gradients():
+    lstm_param = LstmParam() 
+    lstm = LSTM(lstm_param)
+    input_val = np.random.random(x_dim)
+    target_value = np.zeros(mem_cell_ct)
+
+    # init activations
     lstm.forward(input_val)
-    loss = EuclideanLoss.forward(lstm.state.h, target_value)
-    print "Loss: ", loss
+    loss_0 = EuclideanLoss.forward(lstm.state.h, target_value)
     loss_diff = EuclideanLoss.backward(lstm.state.h, target_value)
     lstm.backward(loss_diff)
-    lstm.param.apply_diff(0.0001)
+    bottom_diff = lstm.state.bottom_diff
+
+    # change index 5
+    delta = -0.00001
+    input_val[0] += delta
+    #input_diff = np.zeros(concat_len)
+    #input_diff[0] = delta
+    #lstm.xc += input_diff
+
+    lstm.forward(input_val)
+    loss_1 = EuclideanLoss.forward(lstm.state.h, target_value)
+    loss_grad = (loss_1 - loss_0) / delta
+
+    print "bottom diff:", bottom_diff[0]
+    print "loss grad:", loss_grad
+    print (loss_grad - bottom_diff[0]) / loss_grad
+
+def test():
+    #target_value = np.random.random(mem_cell_ct)
+    #target_value = np.random.random(mem_cell_ct)
+    target_value = np.zeros(mem_cell_ct)
+    #print EuclideanLoss.forward(target_value, target_value)
+    #print EuclideanLoss.backward(target_value, target_value)
+
+    lstm_param = LstmParam() 
+    lstm = LSTM(lstm_param)
+    input_val = np.random.random(x_dim)
+    #input_val = np.ones(x_dim)
+
+    for _ in range(10):
+        lstm.forward(input_val)
+        loss = EuclideanLoss.forward(lstm.state.h, target_value)
+        print "Loss: ", loss
+        loss_diff = EuclideanLoss.backward(lstm.state.h, target_value)
+        lstm.backward(loss_diff)
+        lstm.param.apply_diff(0.1)
+
+check_gradients()
+#EuclideanLoss.check_gradients()
 

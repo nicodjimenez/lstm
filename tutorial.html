@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>MathJax TeX Test Page</title>
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}});
+</script>
+
+<script type="text/javascript"
+  src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+</head>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.6/highlight.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.6/styles/default.min.css">
+<script>hljs.initHighlightingOnLoad();</script>
+
+<body>
+
+<div class="highlight">
+<pre>
+<code class="language-python" data-lang="python" >
+ds = np.multiply(self.state.o, top_diff)
+do = np.multiply(self.state.s, top_diff)
+di = np.multiply(self.state.g, ds)
+dg = np.multiply(self.state.i, ds)
+</code>
+</pre>
+</div>
+
+
+
+$$\begin{eqnarray}
+g(t) &= \phi(W_{gx} x(t) + W_{gh} h(t-1) + b_{g}) \\ 
+i(t) &= \sigma(W_{ix} x(t) + W_{ih} h(t-1) + b_{i}) \\ 
+f(t) &= \sigma(W_{fx} x(t) + W_{fh} h(t-1) + b_{f}) \\ 
+o(t) &= \sigma(W_{ox} x(t) + W_{oh} h(t-1) + b_{o}) \\ 
+s(t) &= g(t) * i(t) + s(t-1) * f(t)  \\ 
+h(t) &= s(t) * o(t) \\ 
+\end{eqnarray}$$
+
+Suppose we are given the diffs with respect to the hidden parameters:
+$$
+\frac{dL}{dh} = 
+\begin{bmatrix}
+\frac{dL}{dh_1} \\
+\frac{dL}{dh_2} \\
+\vdots \\
+\frac{dL}{dh_n} 
+\end{bmatrix}
+$$
+where $L$ is the (scalar) loss function.  By the chain rule we have: 
+$$
+\begin{eqnarray}
+\frac{dL}{ds_{k}} &=&  \frac{dL}{dh_k} \frac{dh_k}{ds_k} \\ 
+&=& \frac{dL}{dh_k} o_k
+\end{eqnarray}
+$$
+
+
+
+</body>
+</html>
