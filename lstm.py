@@ -3,8 +3,12 @@ import random
 import numpy as np
 import math
 
-def sigmoid(x):
+def sigmoid(x): 
     return 1. / (1 + np.exp(-x))
+
+# createst uniform random array w/ values in [a,b) and shape args
+def rand_arr(a, b, *args): 
+    return np.random.rand(*args) * (b - a) + a
 
 class LstmParam:
     def __init__(self, mem_cell_ct, x_dim):
@@ -12,15 +16,15 @@ class LstmParam:
         self.x_dim = x_dim
         concat_len = x_dim + mem_cell_ct
         # weight matrices
-        self.wg =      (np.random.random((mem_cell_ct, concat_len)) - 0.5) * 0.1
-        self.wi =      (np.random.random((mem_cell_ct, concat_len)) - 0.5) * 0.1
-        self.wf =      (np.random.random((mem_cell_ct, concat_len)) - 0.5) * 0.1
-        self.wo =      (np.random.random((mem_cell_ct, concat_len)) - 0.5) * 0.1
+        self.wg = rand_arr(-0.1, 0.1, mem_cell_ct, concat_len)
+        self.wi = rand_arr(-0.1, 0.1, mem_cell_ct, concat_len) 
+        self.wf = rand_arr(-0.1, 0.1, mem_cell_ct, concat_len)
+        self.wo = rand_arr(-0.1, 0.1, mem_cell_ct, concat_len)
         # bias terms
-        self.bg =      (np.random.random(mem_cell_ct) - 0.5) * 0.1
-        self.bi =      (np.random.random(mem_cell_ct) - 0.5) * 0.1
-        self.bf =      (np.random.random(mem_cell_ct) - 0.5) * 0.1
-        self.bo =      (np.random.random(mem_cell_ct) - 0.5) * 0.1
+        self.bg = rand_arr(-0.1, 0.1, mem_cell_ct) 
+        self.bi = rand_arr(-0.1, 0.1, mem_cell_ct) 
+        self.bf = rand_arr(-0.1, 0.1, mem_cell_ct) 
+        self.bo = rand_arr(-0.1, 0.1, mem_cell_ct) 
         # diffs (derivative of loss function w.r.t. all parameters)
         self.wg_diff = np.zeros((mem_cell_ct, concat_len)) 
         self.wi_diff = np.zeros((mem_cell_ct, concat_len)) 
