@@ -6,3 +6,5 @@ This repo features a minimal lstm implementation for people that are curious abo
 well written tutorial introduction.  This article should be read before trying to understand this code (at least the part about lstm's).  By running `python test.py` you will have a minimal example of an lstm network learning to predict an output sequence of numbers in [-1,1] by using a Euclidean loss on the first element of each node's hidden layer.  
 
 Play with code, add functionality, and try it on different datasets.  Pull requests welcome. 
+
+Please read [my blog article](http://nicodjimenez.github.io/2014/08/08/lstm.html) if you want details on the backprop part of the code.
