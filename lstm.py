@@ -8,6 +8,7 @@ def sigmoid(x):
 
 # createst uniform random array w/ values in [a,b) and shape args
 def rand_arr(a, b, *args): 
+    np.random.seed(0)
     return np.random.rand(*args) * (b - a) + a
 
 class LstmParam:
