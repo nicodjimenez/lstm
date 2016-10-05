@@ -8,3 +8,5 @@ well written tutorial introduction.  This article should be read before trying t
 Play with code, add functionality, and try it on different datasets.  Pull requests welcome. 
 
 Please read [my blog article](http://nicodjimenez.github.io/2014/08/08/lstm.html) if you want details on the backprop part of the code.
+
+Also, check out a version of this code written in the D programming language by Mathias Baumann: https://github.com/Marenz/lstm
