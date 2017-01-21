@@ -6,11 +6,11 @@ import math
 def sigmoid(x): 
     return 1. / (1 + np.exp(-x))
 
-def sigmoid_inverse(val): 
-    return val*(1-val)
+def sigmoid_inverse(values): 
+    return values*(1-values)
 
-def tanh_inverse(val): 
-    return 1. - val ** 2
+def tanh_inverse(values): 
+    return 1. - values ** 2
 
 # createst uniform random array w/ values in [a,b) and shape args
 def rand_arr(a, b, *args): 
