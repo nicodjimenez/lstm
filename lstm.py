@@ -6,6 +6,12 @@ import math
 def sigmoid(x): 
     return 1. / (1 + np.exp(-x))
 
+def sigmoid_derivative(values): 
+    return values*(1-values)
+
+def tanh_derivative(values): 
+    return 1. - values ** 2
+
 # createst uniform random array w/ values in [a,b) and shape args
 def rand_arr(a, b, *args): 
     np.random.seed(0)
@@ -105,10 +111,10 @@ class LstmNode:
         df = self.s_prev * ds
 
         # diffs w.r.t. vector inside sigma / tanh function
-        di_input = (1. - self.state.i) * self.state.i * di 
-        df_input = (1. - self.state.f) * self.state.f * df 
-        do_input = (1. - self.state.o) * self.state.o * do 
-        dg_input = (1. - self.state.g ** 2) * dg
+        di_input = sigmoid_derivative(self.state.i) * di 
+        df_input = sigmoid_derivative(self.state.f) * df 
+        do_input = sigmoid_derivative(self.state.o) * do 
+        dg_input = tanh_derivative(self.state.g) * dg
 
         # diffs w.r.t. inputs
         self.param.wi_diff += np.outer(di_input, self.xc)
