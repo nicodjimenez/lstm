@@ -71,15 +71,12 @@ class LstmState:
         self.h = np.zeros(mem_cell_ct)
         self.bottom_diff_h = np.zeros_like(self.h)
         self.bottom_diff_s = np.zeros_like(self.s)
-        self.bottom_diff_x = np.zeros(x_dim)
     
 class LstmNode:
     def __init__(self, lstm_param, lstm_state):
         # store reference to parameters and to activations
         self.state = lstm_state
         self.param = lstm_param
-        # non-recurrent input to node
-        self.x = None
         # non-recurrent input concatenated with recurrent input
         self.xc = None
 
@@ -99,7 +96,7 @@ class LstmNode:
         self.state.o = sigmoid(np.dot(self.param.wo, xc) + self.param.bo)
         self.state.s = self.state.g * self.state.i + s_prev * self.state.f
         self.state.h = self.state.s * self.state.o
-        self.x = x
+
         self.xc = xc
     
     def top_diff_is(self, top_diff_h, top_diff_s):
@@ -135,7 +132,6 @@ class LstmNode:
 
         # save bottom diffs
         self.state.bottom_diff_s = ds * self.state.f
-        self.state.bottom_diff_x = dxc[:self.param.x_dim]
         self.state.bottom_diff_h = dxc[self.param.x_dim:]
 
 class LstmNetwork():
