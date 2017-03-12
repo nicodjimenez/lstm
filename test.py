@@ -29,13 +29,13 @@ def example_0():
     input_val_arr = [np.random.random(x_dim) for _ in y_list]
 
     for cur_iter in range(100):
-        print "cur iter: ", cur_iter
+        print("cur iter: " + str(cur_iter))
         for ind in range(len(y_list)):
             lstm_net.x_list_add(input_val_arr[ind])
-            print "y_pred[%d] : %f" % (ind, lstm_net.lstm_node_list[ind].state.h[0])
+            print("y_pred[" + str(ind) + "] : " + str(lstm_net.lstm_node_list[ind].state.h[0]))
 
         loss = lstm_net.y_list_is(y_list, ToyLossLayer)
-        print "loss: ", loss
+        print("loss: " + str(loss))
         lstm_param.apply_diff(lr=0.1)
         lstm_net.x_list_clear()
 
