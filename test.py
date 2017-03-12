@@ -23,6 +23,7 @@ def example_0():
     # parameters for input data dimension and lstm cell count 
     mem_cell_ct = 100
     x_dim = 50
+    concat_len = x_dim + mem_cell_ct
     lstm_param = LstmParam(mem_cell_ct, x_dim) 
     lstm_net = LstmNetwork(lstm_param)
     y_list = [-0.5,0.2,0.1, -0.5]
