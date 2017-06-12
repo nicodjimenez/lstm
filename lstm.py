@@ -82,8 +82,8 @@ class LstmNode:
 
     def bottom_data_is(self, x, s_prev = None, h_prev = None):
         # if this is the first lstm node in the network
-        if s_prev == None: s_prev = np.zeros_like(self.state.s)
-        if h_prev == None: h_prev = np.zeros_like(self.state.h)
+        if s_prev is None: s_prev = np.zeros_like(self.state.s)
+        if h_prev is None: h_prev = np.zeros_like(self.state.h)
         # save data for use in backprop
         self.s_prev = s_prev
         self.h_prev = h_prev
