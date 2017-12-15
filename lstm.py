@@ -95,7 +95,7 @@ class LstmNode:
         self.state.f = sigmoid(np.dot(self.param.wf, xc) + self.param.bf)
         self.state.o = sigmoid(np.dot(self.param.wo, xc) + self.param.bo)
         self.state.s = self.state.g * self.state.i + s_prev * self.state.f
-        self.state.h = self.state.s * self.state.o
+        self.state.h = np.tanh(self.state.s) * self.state.o
 
         self.xc = xc
     
