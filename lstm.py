@@ -101,7 +101,7 @@ class LstmNode:
     
     def top_diff_is(self, top_diff_h, top_diff_s):
         # notice that top_diff_s is carried along the constant error carousel
-        ds = self.state.o * top_diff_h + top_diff_s
+        ds = self.state.o * top_diff_h * tanh_derivative(self.state.s) + top_diff_s
         do = self.state.s * top_diff_h
         di = self.state.g * ds
         dg = self.state.i * ds
