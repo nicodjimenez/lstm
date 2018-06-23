@@ -10,3 +10,4 @@ Play with code, add functionality, and try it on different datasets.  Pull reque
 Please read [my blog article](http://nicodjimenez.github.io/2014/08/08/lstm.html) if you want details on the backprop part of the code.
 
 This sample code has been ported to the D programming language by Mathias Baumann: https://github.com/Marenz/lstm as well as Julia by @hyperdo https://github.com/hyperdo/julia-lstm and Alfiuman in C++ (with CUDA) https://github.com/Alfiuman/WhydahGally-LSTM-MLP.
+Ported to Ruby by @arjunmenon https://github.com/arjunmenon/Ruby-LSTM
