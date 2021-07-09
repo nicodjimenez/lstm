@@ -99,9 +99,9 @@ class LstmNode:
 
         self.xc = xc
     
-    def top_diff_is(self, top_diff_h, top_diff_s):
+    def top_diff_is(self, top_diff_h):
         # notice that top_diff_s is carried along the constant error carousel
-        ds = self.state.o * top_diff_h + top_diff_s
+        ds = self.state.o * top_diff_h
         do = self.state.s * top_diff_h
         di = self.state.g * ds
         dg = self.state.i * ds
@@ -153,9 +153,7 @@ class LstmNetwork():
         # first node only gets diffs from label ...
         loss = loss_layer.loss(self.lstm_node_list[idx].state.h, y_list[idx])
         diff_h = loss_layer.bottom_diff(self.lstm_node_list[idx].state.h, y_list[idx])
-        # here s is not affecting loss due to h(t+1), hence we set equal to zero
-        diff_s = np.zeros(self.lstm_param.mem_cell_ct)
-        self.lstm_node_list[idx].top_diff_is(diff_h, diff_s)
+        self.lstm_node_list[idx].top_diff_is(diff_h)
         idx -= 1
 
         ### ... following nodes also get diffs from next nodes, hence we add diffs to diff_h
@@ -164,8 +162,7 @@ class LstmNetwork():
             loss += loss_layer.loss(self.lstm_node_list[idx].state.h, y_list[idx])
             diff_h = loss_layer.bottom_diff(self.lstm_node_list[idx].state.h, y_list[idx])
             diff_h += self.lstm_node_list[idx + 1].state.bottom_diff_h
-            diff_s = self.lstm_node_list[idx + 1].state.bottom_diff_s
-            self.lstm_node_list[idx].top_diff_is(diff_h, diff_s)
+            self.lstm_node_list[idx].top_diff_is(diff_h)
             idx -= 1 
 
         return loss
